@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harbor-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: harbor-gateway }
+  template:
+    metadata:
+      labels: { app: harbor-gateway }
+    spec:
+      containers:
+        - name: gateway
+          image: ghcr.io/ihassanusman/harbor-gateway:1.0.0
+          ports: [{ containerPort: 8080 }]
+          env:
+            - { name: CUSTOMER_URI, value: http://customer:8081 }
+            - { name: SHIPMENT_URI, value: http://shipment:8082 }
+            - { name: FINANCE_URI, value: http://finance:8083 }
+            - { name: REDIS_HOST, value: redis }
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8080 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harbor-shipment
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: harbor-shipment }
+  template:
+    metadata:
+      labels: { app: harbor-shipment }
+    spec:
+      containers:
+        - name: shipment
+          image: ghcr.io/ihassanusman/harbor-shipment:1.0.0
+          env:
+            - { name: KAFKA_BOOTSTRAP, value: kafka:9092 }
+            - { name: REDIS_HOST, value: redis }
+            - { name: CUSTOMER_URI, value: http://customer:8081 }
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: harbor-shipment
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: harbor-shipment
+  minReplicas: 2
+  maxReplicas: 12
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: harbor
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: harbor-gateway
+                port: { number: 80 }

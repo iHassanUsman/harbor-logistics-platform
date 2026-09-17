@@ -1,0 +1,3 @@
+CREATE DATABASE customer;
+CREATE DATABASE shipment;
+CREATE DATABASE finance;

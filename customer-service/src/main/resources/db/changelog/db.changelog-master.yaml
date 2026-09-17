@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: harbor
+      changes:
+        - createTable:
+            tableName: customer
+            columns:
+              - column: { name: id, type: varchar(64), constraints: { primaryKey: true, nullable: false } }
+              - column: { name: name, type: varchar(255), constraints: { nullable: false } }
+              - column: { name: type, type: varchar(32), constraints: { nullable: false } }
+              - column: { name: credit_limit, type: decimal(19,2), constraints: { nullable: false } }
+        - insert:
+            tableName: customer
+            columns:
+              - column: { name: id, value: C-ACME }
+              - column: { name: name, value: Acme Trading }
+              - column: { name: type, value: AGENT }
+              - column: { name: credit_limit, valueNumeric: 10000 }
+        - insert:
+            tableName: customer
+            columns:
+              - column: { name: id, value: C-POOR }
+              - column: { name: name, value: Thin Margin LLC }
+              - column: { name: type, value: CUSTOMER }
+              - column: { name: credit_limit, valueNumeric: 100 }

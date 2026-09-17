@@ -1,0 +1,31 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: harbor
+      changes:
+        - createTable:
+            tableName: shipment
+            columns:
+              - column: { name: id, type: varchar(64), constraints: { primaryKey: true, nullable: false } }
+              - column: { name: customer_id, type: varchar(64), constraints: { nullable: false } }
+              - column: { name: origin, type: varchar(8), constraints: { nullable: false } }
+              - column: { name: destination, type: varchar(8), constraints: { nullable: false } }
+              - column: { name: amount, type: decimal(19,2), constraints: { nullable: false } }
+              - column: { name: status, type: varchar(32), constraints: { nullable: false } }
+              - column: { name: updated_at, type: timestamp, constraints: { nullable: false } }
+              - column: { name: reject_reason, type: varchar(255) }
+        - createTable:
+            tableName: outbox_event
+            columns:
+              - column: { name: id, type: uuid, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: topic, type: varchar(128), constraints: { nullable: false } }
+              - column: { name: event_type, type: varchar(64), constraints: { nullable: false } }
+              - column: { name: aggregate_id, type: varchar(64), constraints: { nullable: false } }
+              - column: { name: payload, type: text, constraints: { nullable: false } }
+              - column: { name: created_at, type: timestamp, constraints: { nullable: false } }
+              - column: { name: published_at, type: timestamp }
+        - createIndex:
+            indexName: idx_outbox_unpublished
+            tableName: outbox_event
+            columns:
+              - column: { name: published_at }

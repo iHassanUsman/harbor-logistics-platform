@@ -1,0 +1,40 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: harbor
+      changes:
+        - createTable:
+            tableName: credit_account
+            columns:
+              - column: { name: customer_id, type: varchar(64), constraints: { primaryKey: true, nullable: false } }
+              - column: { name: credit_limit, type: decimal(19,2), constraints: { nullable: false } }
+              - column: { name: used, type: decimal(19,2), constraints: { nullable: false } }
+              - column: { name: version, type: bigint }
+        - createTable:
+            tableName: processed_event
+            columns:
+              - column: { name: event_id, type: varchar(64), constraints: { primaryKey: true, nullable: false } }
+        - createTable:
+            tableName: outbox_event
+            columns:
+              - column: { name: id, type: uuid, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: topic, type: varchar(128), constraints: { nullable: false } }
+              - column: { name: event_type, type: varchar(64), constraints: { nullable: false } }
+              - column: { name: aggregate_id, type: varchar(64), constraints: { nullable: false } }
+              - column: { name: payload, type: text, constraints: { nullable: false } }
+              - column: { name: created_at, type: timestamp, constraints: { nullable: false } }
+              - column: { name: published_at, type: timestamp }
+        - insert:
+            tableName: credit_account
+            columns:
+              - column: { name: customer_id, value: C-ACME }
+              - column: { name: credit_limit, valueNumeric: 10000 }
+              - column: { name: used, valueNumeric: 0 }
+              - column: { name: version, valueNumeric: 0 }
+        - insert:
+            tableName: credit_account
+            columns:
+              - column: { name: customer_id, value: C-POOR }
+              - column: { name: credit_limit, valueNumeric: 100 }
+              - column: { name: used, valueNumeric: 0 }
+              - column: { name: version, valueNumeric: 0 }

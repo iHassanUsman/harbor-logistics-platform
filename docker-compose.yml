@@ -1,0 +1,123 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: harbor
+      POSTGRES_PASSWORD: harbor
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./observability/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U harbor"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  kafka:
+    image: bitnami/kafka:3.8
+    environment:
+      KAFKA_CFG_NODE_ID: 0
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.114.0
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otel-collector.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR: gateway-service/target/gateway-service-1.0.0.jar
+    ports:
+      - "8080:8080"
+    environment:
+      CUSTOMER_URI: http://customer:8081
+      SHIPMENT_URI: http://shipment:8082
+      FINANCE_URI: http://finance:8083
+      REDIS_HOST: redis
+    depends_on:
+      - redis
+      - customer
+      - shipment
+      - finance
+
+  customer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR: customer-service/target/customer-service-1.0.0.jar
+    environment:
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/customer
+      DATASOURCE_USER: harbor
+      DATASOURCE_PASSWORD: harbor
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  shipment:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR: shipment-service/target/shipment-service-1.0.0.jar
+    environment:
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/shipment
+      DATASOURCE_USER: harbor
+      DATASOURCE_PASSWORD: harbor
+      KAFKA_BOOTSTRAP: kafka:9092
+      REDIS_HOST: redis
+      CUSTOMER_URI: http://customer:8081
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      redis:
+        condition: service_started
+      customer:
+        condition: service_started
+
+  finance:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        JAR: finance-service/target/finance-service-1.0.0.jar
+    environment:
+      DATASOURCE_URL: jdbc:postgresql://postgres:5432/finance
+      DATASOURCE_USER: harbor
+      DATASOURCE_PASSWORD: harbor
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started

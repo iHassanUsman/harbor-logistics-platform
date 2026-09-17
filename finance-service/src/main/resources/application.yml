@@ -1,0 +1,33 @@
+server:
+  port: 8083
+spring:
+  application:
+    name: finance-service
+  datasource:
+    url: ${DATASOURCE_URL:jdbc:h2:mem:finance;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}
+    username: ${DATASOURCE_USER:sa}
+    password: ${DATASOURCE_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: finance-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+harbor:
+  outbox:
+    poll-ms: 400
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
